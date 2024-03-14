@@ -21,5 +21,7 @@ public class ColumnEntity {
 
 	private Integer colSpan;
 
+	private Alignment alignment;
+
 	private List<ColumnEntity> children;
 }
