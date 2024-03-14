@@ -55,7 +55,7 @@ public class DataConverter {
         Graphics2D graphics = image.createGraphics();
 
         // background
-        graphics.setBackground(Color.WHITE);
+        graphics.setBackground(this.tableConfig.getBackgroundColor());
         graphics.fillRect(0, 0, totalWidth, totalHeight);
 
         // title

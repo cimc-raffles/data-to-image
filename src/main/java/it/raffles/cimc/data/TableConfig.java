@@ -30,6 +30,9 @@ public class TableConfig {
     private int cellPadding = 20;
 
     @Builder.Default
+    private Color backgroundColor = Color.WHITE;
+
+    @Builder.Default
     private Color headerColor = new Color(250, 250, 250);
 
     @Builder.Default
