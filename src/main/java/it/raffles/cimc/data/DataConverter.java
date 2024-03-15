@@ -71,10 +71,10 @@ public class DataConverter {
         drawCells(graphics, cellHeight, columnWidths);
 
         // draw
-        //graphics.drawImage(image.getScaledInstance(width, height, Image.SCALE_SMOOTH), 0, 0, null);
+        graphics.drawImage(image.getScaledInstance(totalWidth, totalHeight, Image.SCALE_SMOOTH), 0, 0, null);
         graphics.dispose();
 
-        return image;
+        return this.tableConfig.getMargin() > 0 ? setImageMargin(image, this.tableConfig.getMargin()) : image;
     }
 
     public byte[] toImageData() throws IOException {
@@ -119,6 +119,8 @@ public class DataConverter {
         for (int i = 1; i <= totalHeight / cellHeight; i++) {
             graphics.drawLine(0, i * cellHeight, totalWidth, i * cellHeight);
         }
+        graphics.drawLine(0, totalHeight - 1, totalWidth, totalHeight - 1);
+
 
         // Draw vertical lines
         int xPosition = 0;
@@ -126,15 +128,18 @@ public class DataConverter {
             graphics.drawLine(xPosition, cellHeight, xPosition, totalHeight);
             xPosition += width;
         }
+        graphics.drawLine(totalWidth - 1, cellHeight, totalWidth - 1, totalHeight);
+
     }
 
     // 绘制表头
     private void drawHeaders(Graphics2D graphics, int cellHeight, int[] columnWidths) {
         FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) (tableConfig.getFontSize()));
+        Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) (tableConfig.getFontSize() + 1));
         graphics.setFont(headerFont);
 
         int xStart = 0;
+
         for (int i = 0; i < this.headers.size(); i++) {
             String header = this.headers.get(i).getName();
             int stringWidth = graphics.getFontMetrics().stringWidth(header);
@@ -143,7 +148,7 @@ public class DataConverter {
 
             // Set header background color
             graphics.setColor(this.tableConfig.getHeaderBackgroundColor());
-            graphics.fillRect(xStart + 1, cellHeight, columnWidths[i] - 1, cellHeight);
+            graphics.fillRect(xStart + 1, cellHeight + 1, columnWidths[i] - (i + 1 == this.headers.size() ? 2 : 1), cellHeight - 1);
 
             // Set text color
             graphics.setColor(this.tableConfig.getHeaderColor());
@@ -182,6 +187,27 @@ public class DataConverter {
                 xContentStart += columnWidths[j]; // Move to the start of the next column
             }
         }
+    }
+
+    // set image margin
+    private BufferedImage setImageMargin(BufferedImage image, int margin) {
+        int newWidth = image.getWidth() + 2 * margin;
+        int newHeight = image.getHeight() + 2 * margin;
+        // Create a new BufferedImage with increased dimensions
+        BufferedImage imageWithMargin = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D graphics = imageWithMargin.createGraphics();
+
+        // Set background color for the margin
+        graphics.setColor(this.tableConfig.getBackgroundColor()); // Replace with desired color
+        graphics.fillRect(0, 0, newWidth, newHeight);
+
+        // Draw the original image onto the new BufferedImage with the desired margin
+        graphics.drawImage(image, margin, margin, null);
+
+        // Dispose of the Graphics2D object
+        graphics.dispose();
+
+        return imageWithMargin;
     }
 
     // activate antialiasing and fractional metrics

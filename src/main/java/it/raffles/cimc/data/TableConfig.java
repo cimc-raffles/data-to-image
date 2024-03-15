@@ -14,6 +14,9 @@ import lombok.NoArgsConstructor;
 public class TableConfig {
 
     @Builder.Default
+    private int margin = 20;
+
+    @Builder.Default
     private int fontSize = 12;
 
     @Builder.Default
@@ -26,10 +29,10 @@ public class TableConfig {
     private Color backgroundColor = Color.WHITE;
 
     @Builder.Default
-    private Color headerColor = new Color(250, 250, 250);
+    private Color headerColor = new Color(0,0,0);
 
     @Builder.Default
-    private Color headerBackgroundColor = new Color(128, 128, 128);
+    private Color headerBackgroundColor = new Color(250, 250, 250);
 
     @Builder.Default
     private Color lineColor = new Color(232, 232, 232);
