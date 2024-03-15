@@ -14,13 +14,6 @@ import lombok.NoArgsConstructor;
 public class TableConfig {
 
     @Builder.Default
-    private int width = 800;
-
-    @Builder.Default
-    private int height = 600;
-
-
-    @Builder.Default
     private int fontSize = 12;
 
     @Builder.Default
