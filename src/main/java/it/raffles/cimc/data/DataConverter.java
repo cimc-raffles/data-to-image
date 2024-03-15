@@ -98,8 +98,9 @@ public class DataConverter {
         if (null == title || title.isEmpty())
             return;
 
+        int titleFontSize = null == this.tableConfig.getTitleFontSize() ? this.tableConfig.getFontSize() + 2 : this.tableConfig.getTitleFontSize();
         FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font titleFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) (this.tableConfig.getFontSize() + 2));
+        Font titleFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) titleFontSize);
         graphics.setFont(titleFont);
         graphics.setColor(this.tableConfig.getTitleColor());
 
@@ -134,8 +135,9 @@ public class DataConverter {
 
     // 绘制表头
     private void drawHeaders(Graphics2D graphics, int cellHeight, int[] columnWidths) {
+        int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
         FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) (tableConfig.getFontSize() + 1));
+        Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) headerFontSize);
         graphics.setFont(headerFont);
 
         int xStart = 0;

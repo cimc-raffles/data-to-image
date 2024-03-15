@@ -28,8 +28,10 @@ public class TableConfig {
     @Builder.Default
     private Color backgroundColor = Color.WHITE;
 
+    private Integer headerFontSize;
+
     @Builder.Default
-    private Color headerColor = new Color(0,0,0);
+    private Color headerColor = new Color(0, 0, 0);
 
     @Builder.Default
     private Color headerBackgroundColor = new Color(250, 250, 250);
@@ -39,6 +41,8 @@ public class TableConfig {
 
     @Builder.Default
     private Color textColor = new Color(89, 89, 89);
+
+    private Integer titleFontSize;
 
     @Builder.Default
     private Color titleColor = new Color(89, 89, 89);
