@@ -1,5 +1,6 @@
 package it.raffles.cimc.data;
 
+import it.raffles.cimc.data.entity.CellEntity;
 import it.raffles.cimc.data.entity.ColumnEntity;
 
 import javax.imageio.ImageIO;
@@ -164,14 +165,17 @@ public class DataConverter {
         FontMetrics fontMetrics = graphics.getFontMetrics();
         Font cellFont = fontMetrics.getFont().deriveFont((float) (tableConfig.getFontSize()));
         graphics.setFont(cellFont);
-        graphics.setColor(this.tableConfig.getTextColor());
+//        graphics.setColor(this.tableConfig.getTextColor());
 
         int cellPadding = this.tableConfig.getCellPadding();
 
         for (int i = 0; i < this.data.size(); i++) {
+
             int xContentStart = 0; // Reset xStart for each row
+
             for (int j = 0; j < this.data.get(i).size(); j++) {
-                String cellContent = String.valueOf(this.data.get(i).get(j));
+                Object cellData = this.data.get(i).get(j);
+                String cellContent = getCellValue(cellData);
                 int stringWidth = graphics.getFontMetrics().stringWidth(cellContent);
                 int x;
                 switch (this.headers.get(j).getAlignment()) {
@@ -185,8 +189,28 @@ public class DataConverter {
                         x = xContentStart + cellPadding;
                 }
                 int y = (i + 2) * cellHeight + cellHeight / 2 + graphics.getFontMetrics().getAscent() / 2; // Vertically center the content
+
+                if (isCellEntity(cellData)) {
+                    // draw cell background
+                    if (null != ((CellEntity) cellData).getBackgroundColor()) {
+                        Color cellBackgroundColor = ((CellEntity) cellData).getBackgroundColor();
+                        graphics.setColor(cellBackgroundColor);
+                        graphics.fillRect(xContentStart + 1, (i + 1) * cellHeight + cellHeight + 1, columnWidths[j] - (j + 1 == this.headers.size() ? 2 : 1), cellHeight - 1);
+                    }
+                    if (null != ((CellEntity) cellData).getColor()) {
+                        graphics.setColor(((CellEntity) cellData).getColor());
+                    } else {
+                        graphics.setColor(this.tableConfig.getTextColor());
+                    }
+                }
+
                 graphics.drawString(cellContent, x, y);
+                // reset font color
+                graphics.setColor(this.tableConfig.getTextColor());
+
                 xContentStart += columnWidths[j]; // Move to the start of the next column
+
+
             }
         }
     }
@@ -210,6 +234,14 @@ public class DataConverter {
         graphics.dispose();
 
         return imageWithMargin;
+    }
+
+    private boolean isCellEntity(Object cellData) {
+        return cellData instanceof CellEntity;
+    }
+
+    private String getCellValue(Object cellData) {
+        return String.valueOf(isCellEntity(cellData) ? ((CellEntity) cellData).getValue() : cellData);
     }
 
     // activate antialiasing and fractional metrics
