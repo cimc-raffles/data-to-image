@@ -8,7 +8,9 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class DataConverter {
 
@@ -59,6 +61,8 @@ public class DataConverter {
         graphics.setBackground(this.tableConfig.getBackgroundColor());
         graphics.fillRect(0, 0, totalWidth, totalHeight);
 
+        setAntialiasing(graphics);
+
         // title
         drawTitle(graphics, totalWidth);
 
@@ -72,7 +76,9 @@ public class DataConverter {
         drawCells(graphics, cellHeight, columnWidths);
 
         // draw
-        graphics.drawImage(image.getScaledInstance(totalWidth, totalHeight, Image.SCALE_SMOOTH), 0, 0, null);
+        removeAntialiasing(graphics);
+
+//        graphics.drawImage(image.getScaledInstance(totalWidth, totalHeight, Image.SCALE_SMOOTH), 0, 0, null);
         graphics.dispose();
 
         return this.tableConfig.getMargin() > 0 ? setImageMargin(image, this.tableConfig.getMargin()) : image;
@@ -96,22 +102,41 @@ public class DataConverter {
     // 绘制表格标题
     private void drawTitle(Graphics2D graphics, int totalWidth) {
         String title = this.tableConfig.getTitle();
-        if (null == title || title.isEmpty())
+        List<CellEntity> titles = this.tableConfig.getTitles();
+
+        if ((null == title || title.isEmpty()) && (null == titles || titles.isEmpty()))
             return;
+
+        if (null == titles || titles.isEmpty()) {
+            titles = new ArrayList<>();
+            titles.add(CellEntity.builder().value(title).build());
+        }
 
         int titleFontSize = null == this.tableConfig.getTitleFontSize() ? this.tableConfig.getFontSize() + 2 : this.tableConfig.getTitleFontSize();
         FontMetrics fontMetrics = graphics.getFontMetrics();
         Font titleFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) titleFontSize);
         graphics.setFont(titleFont);
-        graphics.setColor(this.tableConfig.getTitleColor());
 
-        int titleWidth = fontMetrics.stringWidth(title);
+        String titleContent = titles.stream().map(item -> String.valueOf(item.getValue())).collect(Collectors.joining());
+        int titleWidth = graphics.getFontMetrics().stringWidth(titleContent);
         int titleX = (totalWidth - titleWidth) / 2;
         int titleY = (this.tableConfig.getCellHeight() - fontMetrics.getHeight()) / 2 + fontMetrics.getAscent();
 
-        setAntialiasing(graphics);
-        graphics.drawString(title, titleX, titleY);
-        removeAntialiasing(graphics);
+        graphics.setColor(this.tableConfig.getTitleColor());
+
+        for (CellEntity cellData : titles) {
+            Color cellColor = cellData.getColor();
+            if (null != cellColor)
+                graphics.setColor(cellColor);
+
+            String cellValue = String.valueOf(cellData.getValue());
+
+            graphics.drawString(cellValue, titleX, titleY);
+            titleX += graphics.getFontMetrics().stringWidth(cellValue);
+
+            //reset title color
+            graphics.setColor(this.tableConfig.getTitleColor());
+        }
     }
 
     // 绘制表格网格线
@@ -243,6 +268,7 @@ public class DataConverter {
     private String getCellValue(Object cellData) {
         return String.valueOf(isCellEntity(cellData) ? ((CellEntity) cellData).getValue() : cellData);
     }
+
 
     // activate antialiasing and fractional metrics
     private void setAntialiasing(Graphics2D graphics) {

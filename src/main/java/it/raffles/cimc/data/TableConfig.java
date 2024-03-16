@@ -1,11 +1,13 @@
 package it.raffles.cimc.data;
 
-import java.awt.Color;
-
+import it.raffles.cimc.data.entity.CellEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.awt.*;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -51,5 +53,7 @@ public class TableConfig {
     private String fileExtension = "png";
 
     private String title;
+
+    private List<CellEntity> titles;
 
 }
