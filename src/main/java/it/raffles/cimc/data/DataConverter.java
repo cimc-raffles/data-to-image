@@ -1,6 +1,8 @@
 package it.raffles.cimc.data;
 
+import it.raffles.cimc.data.entity.Alignment;
 import it.raffles.cimc.data.entity.CellEntity;
+import it.raffles.cimc.data.entity.CellRangeAddress;
 import it.raffles.cimc.data.entity.ColumnEntity;
 
 import javax.imageio.ImageIO;
@@ -20,6 +22,10 @@ public class DataConverter {
 
     private TableConfig tableConfig;
 
+    private List<CellRangeAddress> mergedRegions;
+
+    private final List<CellEntity> computedHeaders = new ArrayList<>();
+
     public DataConverter() {
     }
 
@@ -34,10 +40,16 @@ public class DataConverter {
         this.tableConfig = tableConfig;
     }
 
-    public BufferedImage toImage() throws IOException {
+    public BufferedImage toImage() {
 
         this.tableConfig = this.getTableConfig();
         int cellHeight = tableConfig.getCellHeight();
+
+        // header
+        drawHeaders();
+
+        // title
+        drawTitle();
 
         int rows = data.size();
 
@@ -45,10 +57,10 @@ public class DataConverter {
         int[] columnWidths = this.headers.stream().mapToInt(ColumnEntity::getWidth).toArray();
 
         // Calculate the total height including header row and title row
-        int totalHeight = (rows + 2) * cellHeight;
+        int totalHeight = rows * cellHeight + 1;
 
         // Calculate total width
-        int totalWidth = 0;
+        int totalWidth = 1;
         for (int width : columnWidths) {
             totalWidth += width;
         }
@@ -63,17 +75,12 @@ public class DataConverter {
 
         setAntialiasing(graphics);
 
-        // title
-        drawTitle(graphics, totalWidth);
-
         // grid
-        drawGrid(graphics, totalWidth, totalHeight, cellHeight, columnWidths);
+        drawGrid(graphics);
 
-        // headers
-        drawHeaders(graphics, cellHeight, columnWidths);
-
-        // cells
-        drawCells(graphics, cellHeight, columnWidths);
+        //merge
+        if (this.mergedRegions != null)
+            mergeCells(graphics);
 
         // draw
         removeAntialiasing(graphics);
@@ -99,146 +106,178 @@ public class DataConverter {
     }
 
 
-    // 绘制表格标题
-    private void drawTitle(Graphics2D graphics, int totalWidth) {
-        String title = this.tableConfig.getTitle();
-        List<CellEntity> titles = this.tableConfig.getTitles();
+    public void addMergedRegion(CellRangeAddress address) {
+        if (null == this.mergedRegions)
+            this.mergedRegions = new ArrayList<>();
+        this.mergedRegions.add(address);
+    }
 
-        if ((null == title || title.isEmpty()) && (null == titles || titles.isEmpty()))
+
+    private void drawHeaders() {
+
+        List<Object> childrenData = new ArrayList<>();
+        boolean hasChildren = false;
+        for (ColumnEntity header : this.headers) {
+            CellEntity cellData = CellEntity.builder().isHeader(true).alignment(Alignment.CENTER).value(header.getName()).width(header.getWidth()).fontSize(this.tableConfig.getHeaderFontSize()).color(this.tableConfig.getHeaderColor()).backgroundColor(this.tableConfig.getHeaderBackgroundColor()).build();
+            if (header.getChildren() != null) {
+                hasChildren = true;
+                List<ColumnEntity> children = header.getChildren();
+                for (ColumnEntity childData : children) {
+                    CellEntity childCellData = CellEntity.builder().isHeader(true).alignment(Alignment.CENTER).parent(cellData).value(childData.getName()).width(childData.getWidth()).fontSize(this.tableConfig.getHeaderFontSize()).color(this.tableConfig.getHeaderColor()).backgroundColor(this.tableConfig.getHeaderBackgroundColor()).build();
+                    childrenData.add(childCellData);
+                    this.computedHeaders.add(childCellData);
+                }
+            } else {
+                childrenData.add(cellData);
+                this.computedHeaders.add(cellData);
+            }
+        }
+
+        this.data.add(0, childrenData);
+
+        if (!hasChildren)
             return;
 
-        if (null == titles || titles.isEmpty()) {
-            titles = new ArrayList<>();
-            titles.add(CellEntity.builder().value(title).build());
+        List<Object> parentData = new ArrayList<>();
+        for (Object childrenDatum : childrenData) {
+            CellEntity childData = (CellEntity) childrenDatum;
+            if (null == childData.getParent()) {
+                parentData.add(childData);
+            } else {
+                parentData.add(childData.getParent());
+            }
         }
-
-        int titleFontSize = null == this.tableConfig.getTitleFontSize() ? this.tableConfig.getFontSize() + 2 : this.tableConfig.getTitleFontSize();
-        FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font titleFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) titleFontSize);
-        graphics.setFont(titleFont);
-
-        String titleContent = titles.stream().map(item -> String.valueOf(item.getValue())).collect(Collectors.joining());
-        int titleWidth = graphics.getFontMetrics().stringWidth(titleContent);
-        int titleX = (totalWidth - titleWidth) / 2;
-        int titleY = (this.tableConfig.getCellHeight() - fontMetrics.getHeight()) / 2 + fontMetrics.getAscent();
-
-        graphics.setColor(this.tableConfig.getTitleColor());
-
-        for (CellEntity cellData : titles) {
-            Color cellColor = cellData.getColor();
-            if (null != cellColor)
-                graphics.setColor(cellColor);
-
-            String cellValue = String.valueOf(cellData.getValue());
-
-            graphics.drawString(cellValue, titleX, titleY);
-            titleX += graphics.getFontMetrics().stringWidth(cellValue);
-
-            //reset title color
-            graphics.setColor(this.tableConfig.getTitleColor());
-        }
+        this.data.add(0, parentData);
     }
 
-    // 绘制表格网格线
-    private void drawGrid(Graphics2D graphics, int totalWidth, int totalHeight, int cellHeight, int[] columnWidths) {
-        graphics.setColor(this.tableConfig.getLineColor());
-        // Draw horizontal lines
-        for (int i = 1; i <= totalHeight / cellHeight; i++) {
-            graphics.drawLine(0, i * cellHeight, totalWidth, i * cellHeight);
-        }
-        graphics.drawLine(0, totalHeight - 1, totalWidth, totalHeight - 1);
+    private void drawGrid(Graphics2D graphics) {
 
+        for (int i = 0; i < data.size(); ++i) {
+            List<Object> rowData = data.get(i);
 
-        // Draw vertical lines
-        int xPosition = 0;
-        for (int width : columnWidths) {
-            graphics.drawLine(xPosition, cellHeight, xPosition, totalHeight);
-            xPosition += width;
-        }
-        graphics.drawLine(totalWidth - 1, cellHeight, totalWidth - 1, totalHeight);
-
-    }
-
-    // 绘制表头
-    private void drawHeaders(Graphics2D graphics, int cellHeight, int[] columnWidths) {
-        int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
-        FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) headerFontSize);
-        graphics.setFont(headerFont);
-
-        int xStart = 0;
-
-        for (int i = 0; i < this.headers.size(); i++) {
-            String header = this.headers.get(i).getName();
-            int stringWidth = graphics.getFontMetrics().stringWidth(header);
-            int x = xStart + (columnWidths[i] - stringWidth) / 2;
-            int y = cellHeight + cellHeight / 2 + graphics.getFontMetrics().getAscent() / 2; // Vertically center the header
-
-            // Set header background color
-            graphics.setColor(this.tableConfig.getHeaderBackgroundColor());
-            graphics.fillRect(xStart + 1, cellHeight + 1, columnWidths[i] - (i + 1 == this.headers.size() ? 2 : 1), cellHeight - 1);
-
-            // Set text color
-            graphics.setColor(this.tableConfig.getHeaderColor());
-            graphics.drawString(header, x, y);
-            xStart += columnWidths[i]; // Move to the start of the next column
-        }
-    }
-
-    // 绘制单元格内容
-    private void drawCells(Graphics2D graphics, int cellHeight, int[] columnWidths) {
-        FontMetrics fontMetrics = graphics.getFontMetrics();
-        Font cellFont = fontMetrics.getFont().deriveFont((float) (tableConfig.getFontSize()));
-        graphics.setFont(cellFont);
-//        graphics.setColor(this.tableConfig.getTextColor());
-
-        int cellPadding = this.tableConfig.getCellPadding();
-
-        for (int i = 0; i < this.data.size(); i++) {
-
+            int x = 0;
             int xContentStart = 0; // Reset xStart for each row
 
-            for (int j = 0; j < this.data.get(i).size(); j++) {
-                Object cellData = this.data.get(i).get(j);
-                String cellContent = getCellValue(cellData);
-                int stringWidth = graphics.getFontMetrics().stringWidth(cellContent);
-                int x;
-                switch (this.headers.get(j).getAlignment()) {
-                    case CENTER:
-                        x = xContentStart + (columnWidths[j] - stringWidth) / 2;
-                        break;
-                    case RIGHT:
-                        x = xContentStart + columnWidths[j] - stringWidth - cellPadding;
-                        break;
-                    default:
-                        x = xContentStart + cellPadding;
-                }
-                int y = (i + 2) * cellHeight + cellHeight / 2 + graphics.getFontMetrics().getAscent() / 2; // Vertically center the content
+            int cellHeight = this.tableConfig.getCellHeight();
+//            int offsetHeight = null == this.tableConfig.getTitle() && null == this.tableConfig.getTitles() ? 0 : cellHeight;
 
-                if (isCellEntity(cellData)) {
-                    // draw cell background
-                    if (null != ((CellEntity) cellData).getBackgroundColor()) {
-                        Color cellBackgroundColor = ((CellEntity) cellData).getBackgroundColor();
-                        graphics.setColor(cellBackgroundColor);
-                        graphics.fillRect(xContentStart + 1, (i + 1) * cellHeight + cellHeight + 1, columnWidths[j] - (j + 1 == this.headers.size() ? 2 : 1), cellHeight - 1);
-                    }
-                    if (null != ((CellEntity) cellData).getColor()) {
-                        graphics.setColor(((CellEntity) cellData).getColor());
-                    } else {
-                        graphics.setColor(this.tableConfig.getTextColor());
-                    }
-                }
+            for (int j = 0; j < rowData.size(); ++j) {
+                Object vo = rowData.get(j);
+                CellEntity cellData = isCellEntity(vo) ? (CellEntity) vo : CellEntity.builder().value(vo).build();
+                int width = this.computedHeaders.get(j).getWidth();
+                int[] bound = new int[]{x, i * cellHeight, x + width, (i + 1) * cellHeight};
+                cellData.setRowIndex(i);
+                cellData.setColumnIndex(j);
+                cellData.setBound(bound);
+                cellData.setHeight(cellHeight);
+                cellData.setWidth(width);
 
-                graphics.drawString(cellContent, x, y);
-                // reset font color
+                rowData.set(j, cellData);
+
+                graphics.setColor(this.tableConfig.getLineColor());
+                if (i == 0)
+                    graphics.drawLine(bound[0], bound[1], bound[2], bound[1]);
+                if (j == 0)
+                    graphics.drawLine(bound[0], bound[1], bound[0], bound[3]);
+
+                graphics.drawLine(bound[0], bound[3], bound[2], bound[3]);
+
+                graphics.drawLine(bound[2], bound[1], bound[2], bound[3]);
+
+                x = x + width;
+
+                drawText(graphics, cellData, xContentStart, i * cellHeight, width, cellHeight, this.computedHeaders.get(j).getAlignment());
+
+                xContentStart += width; // Move to the start of the next column
+
                 graphics.setColor(this.tableConfig.getTextColor());
-
-                xContentStart += columnWidths[j]; // Move to the start of the next column
-
-
             }
         }
     }
+
+    //绘制文字
+    private void drawText(Graphics2D graphics, Object cellData, int x, int y, int width, int height, Alignment alignment) {
+
+        int cellPadding = this.tableConfig.getCellPadding();
+        String cellContent = getCellValue(cellData);
+        FontMetrics fontMetrics = graphics.getFontMetrics();
+
+        if (cellData instanceof CellEntity && ((CellEntity) cellData).isHeader()) {
+            alignment = Alignment.CENTER;
+            int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
+            Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) headerFontSize);
+            graphics.setFont(headerFont);
+        }
+
+        int stringWidth = fontMetrics.stringWidth(cellContent);
+        int xContent;
+        switch (alignment) {
+            case CENTER:
+                xContent = x + (width - stringWidth) / 2;
+                break;
+            case RIGHT:
+                xContent = x + width - stringWidth - cellPadding;
+                break;
+            default:
+                xContent = x + cellPadding;
+        }
+        int yContent = y + height / 2 + fontMetrics.getAscent() / 2; // Vertically center the content
+
+        if (isCellEntity(cellData)) {
+            // draw cell background
+            if (null != ((CellEntity) cellData).getBackgroundColor()) {
+                Color cellBackgroundColor = ((CellEntity) cellData).getBackgroundColor();
+                graphics.setColor(cellBackgroundColor);
+                graphics.fillRect(x + 1, y, width - 1, height);
+//                graphics.setColor(this.tableConfig.getLineColor());
+//                graphics.drawRect(x, y, width, height);
+            }
+            if (null != ((CellEntity) cellData).getColor()) {
+                graphics.setColor(((CellEntity) cellData).getColor());
+            } else {
+                graphics.setColor(this.tableConfig.getTextColor());
+            }
+        }
+
+        if (isCellEntityList(((CellEntity) cellData).getValue())) {
+            List<CellEntity> values = (List<CellEntity>) ((CellEntity) cellData).getValue();
+            for (CellEntity cell : values) {
+                Color cellColor = cell.getColor();
+                if (null != cellColor)
+                    graphics.setColor(cellColor);
+
+                String cellValue = String.valueOf(cell.getValue());
+
+                graphics.drawString(cellValue, xContent, yContent);
+                xContent += graphics.getFontMetrics().stringWidth(cellValue);
+
+                //reset title color
+                graphics.setColor(this.tableConfig.getTitleColor());
+            }
+        } else {
+            graphics.drawString(cellContent, xContent, yContent);
+
+        }
+
+        // reset font color
+        graphics.setColor(this.tableConfig.getTextColor());
+        graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN));
+    }
+
+    // 绘制表格标题
+
+    private void drawTitle() {
+        Object title = null == this.tableConfig.getTitles() ? this.tableConfig.getTitle() : this.tableConfig.getTitles();
+        if (null == title)
+            return;
+        List<Object> items = new ArrayList<>();
+        for (CellEntity ignored : this.computedHeaders) {
+            items.add(CellEntity.builder().isHeader(true).value(title).build());
+        }
+        this.data.add(0, items);
+        this.addMergedRegion(CellRangeAddress.builder().firstRow(0).lastRow(0).firstCol(0).lastCol(this.computedHeaders.size() - 1).build());
+    }
+
 
     // set image margin
     private BufferedImage setImageMargin(BufferedImage image, int margin) {
@@ -265,8 +304,62 @@ public class DataConverter {
         return cellData instanceof CellEntity;
     }
 
+
+    public static boolean isCellEntityList(Object cellData) {
+        return cellData instanceof List && ((List<?>) cellData).stream().allMatch(item -> item instanceof CellEntity);
+    }
+
     private String getCellValue(Object cellData) {
+        if (cellData instanceof String)
+            return String.valueOf(cellData);
+        if (cellData instanceof CellEntity) {
+            Object value = ((CellEntity) cellData).getValue();
+            if (value instanceof String)
+                return String.valueOf(value);
+            if (value instanceof CellEntity)
+                return String.valueOf(((CellEntity) value).getValue());
+            if (isCellEntityList(value))
+                return ((List<CellEntity>) value).stream().map(item -> String.valueOf(item.getValue())).collect(Collectors.joining());
+        }
         return String.valueOf(isCellEntity(cellData) ? ((CellEntity) cellData).getValue() : cellData);
+    }
+
+    private void mergeCells(Graphics2D graphics) {
+        for (CellRangeAddress range : this.mergedRegions) {
+            graphics.setColor(this.tableConfig.getLineColor());
+            CellEntity cell = getMergedCell(range);
+            int[] bound = cell.getBound();
+
+            int width = bound[2] - bound[0];
+            int height = bound[3] - bound[1];
+            graphics.clearRect(bound[0], bound[1], width, height);
+            graphics.drawRect(bound[0], bound[1], width, height);
+
+            drawText(graphics, this.data.get(range.getFirstRow()).get(range.getFirstCol()), bound[0], bound[1], width, height, Alignment.CENTER);
+            graphics.setColor(this.tableConfig.getLineColor());
+        }
+    }
+
+    /**
+     * 获取合并的单元格宽度
+     *
+     * @return 合并的单元格宽度
+     */
+    private CellEntity getMergedCell(CellRangeAddress mergedRegion) {
+
+        CellEntity firstCell = toCellEntity(this.data.get(mergedRegion.getFirstRow()).get(mergedRegion.getFirstCol()));
+        CellEntity lastCell = toCellEntity(this.data.get(mergedRegion.getLastRow()).get(mergedRegion.getLastCol()));
+
+        int[] firstBound = firstCell.getBound();
+        int[] lastBound = lastCell.getBound();
+
+        int[] bound = new int[]{firstBound[0], firstBound[1], lastBound[2], lastBound[3]};
+
+        return CellEntity.builder().bound(bound).value(firstCell.getValue()).build();
+    }
+
+    private CellEntity toCellEntity(Object item) {
+        return item instanceof CellEntity ? (CellEntity) item : CellEntity.builder().value(item).build();
     }
 
 

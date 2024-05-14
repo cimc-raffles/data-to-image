@@ -13,15 +13,13 @@ import lombok.NoArgsConstructor;
 @Data
 public class ColumnEntity {
 
-	private String key;
+    private String key;
 
-	private String name;
+    private String name;
 
-	private Integer width;
+    private Integer width;
 
-	private Integer colSpan;
+    private Alignment alignment;
 
-	private Alignment alignment;
-
-	private List<ColumnEntity> children;
+    private List<ColumnEntity> children;
 }
