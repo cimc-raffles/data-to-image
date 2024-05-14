@@ -1,6 +1,7 @@
 package it.raffles.cimc.data;
 
 import it.raffles.cimc.data.entity.CellEntity;
+import it.raffles.cimc.data.entity.CellRangeAddress;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -55,5 +56,7 @@ public class TableConfig {
     private String title;
 
     private List<CellEntity> titles;
+
+    private List<CellRangeAddress> mergedRegions;
 
 }

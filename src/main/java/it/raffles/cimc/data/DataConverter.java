@@ -22,8 +22,6 @@ public class DataConverter {
 
     private TableConfig tableConfig;
 
-    private List<CellRangeAddress> mergedRegions;
-
     private final List<CellEntity> computedHeaders = new ArrayList<>();
 
     public DataConverter() {
@@ -79,7 +77,7 @@ public class DataConverter {
         drawGrid(graphics);
 
         //merge
-        if (this.mergedRegions != null)
+        if (this.tableConfig.getMergedRegions() != null)
             mergeCells(graphics);
 
         // draw
@@ -107,9 +105,9 @@ public class DataConverter {
 
 
     public void addMergedRegion(CellRangeAddress address) {
-        if (null == this.mergedRegions)
-            this.mergedRegions = new ArrayList<>();
-        this.mergedRegions.add(address);
+        if (null == this.tableConfig.getMergedRegions())
+            this.tableConfig.setMergedRegions(new ArrayList<>());
+        this.tableConfig.getMergedRegions().add(address);
     }
 
 
@@ -325,7 +323,7 @@ public class DataConverter {
     }
 
     private void mergeCells(Graphics2D graphics) {
-        for (CellRangeAddress range : this.mergedRegions) {
+        for (CellRangeAddress range : this.tableConfig.getMergedRegions()) {
             graphics.setColor(this.tableConfig.getLineColor());
             CellEntity cell = getMergedCell(range);
             int[] bound = cell.getBound();
