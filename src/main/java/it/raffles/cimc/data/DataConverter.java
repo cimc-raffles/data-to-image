@@ -1,9 +1,6 @@
 package it.raffles.cimc.data;
 
-import it.raffles.cimc.data.entity.Alignment;
-import it.raffles.cimc.data.entity.CellEntity;
-import it.raffles.cimc.data.entity.CellRangeAddress;
-import it.raffles.cimc.data.entity.ColumnEntity;
+import it.raffles.cimc.data.entity.*;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
@@ -178,9 +175,11 @@ public class DataConverter {
                 if (j == 0)
                     graphics.drawLine(bound[0], bound[1], bound[0], bound[3]);
 
-                graphics.drawLine(bound[0], bound[3], bound[2], bound[3]);
+                if (cellData.getBorder() == null || !Border.NO_BOTTOM.equals(cellData.getBorder()))
+                    graphics.drawLine(bound[0], bound[3], bound[2], bound[3]);
 
-                graphics.drawLine(bound[2], bound[1], bound[2], bound[3]);
+                if (cellData.getBorder() == null || !Border.NO_RIGHT.equals(cellData.getBorder()))
+                    graphics.drawLine(bound[2], bound[1], bound[2], bound[3]);
 
                 x = x + width;
 
@@ -198,13 +197,21 @@ public class DataConverter {
 
         int cellPadding = this.tableConfig.getCellPadding();
         String cellContent = getCellValue(cellData);
-        FontMetrics fontMetrics = graphics.getFontMetrics();
 
-        if (cellData instanceof CellEntity && ((CellEntity) cellData).isHeader()) {
-            alignment = Alignment.CENTER;
-            int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
-            Font headerFont = fontMetrics.getFont().deriveFont(Font.BOLD, (float) headerFontSize);
-            graphics.setFont(headerFont);
+        FontMetrics fontMetrics = graphics.getFontMetrics();
+        int cellFontSize = this.tableConfig.getFontSize();
+        graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN, cellFontSize));
+
+        if (cellData instanceof CellEntity) {
+            if (null != ((CellEntity) cellData).getFontSize()) {
+                cellFontSize = ((CellEntity) cellData).getFontSize();
+                graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN, cellFontSize));
+            }
+            if (((CellEntity) cellData).isHeader()) {
+                alignment = Alignment.CENTER;
+                int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
+                fontMetrics.getFont().deriveFont(Font.BOLD, headerFontSize);
+            }
         }
 
         int stringWidth = fontMetrics.stringWidth(cellContent);
@@ -263,7 +270,6 @@ public class DataConverter {
     }
 
     // 绘制表格标题
-
     private void drawTitle() {
         Object title = null == this.tableConfig.getTitles() ? this.tableConfig.getTitle() : this.tableConfig.getTitles();
         if (null == title)
@@ -333,7 +339,11 @@ public class DataConverter {
             graphics.clearRect(bound[0], bound[1], width, height);
             graphics.drawRect(bound[0], bound[1], width, height);
 
-            drawText(graphics, this.data.get(range.getFirstRow()).get(range.getFirstCol()), bound[0], bound[1], width, height, Alignment.CENTER);
+            if (cell.isHeader()) {
+                graphics.setFont(this.getHeaderFont(graphics));
+            }
+
+            drawText(graphics, this.data.get(range.getFirstRow()).get(range.getFirstCol()), bound[0], bound[1], width, height, Alignment.LEFT);
             graphics.setColor(this.tableConfig.getLineColor());
         }
     }
@@ -353,13 +363,22 @@ public class DataConverter {
 
         int[] bound = new int[]{firstBound[0], firstBound[1], lastBound[2], lastBound[3]};
 
-        return CellEntity.builder().bound(bound).value(firstCell.getValue()).build();
+        return CellEntity.builder().bound(bound).value(firstCell.getValue()).isHeader(firstCell.isHeader()).build();
     }
 
     private CellEntity toCellEntity(Object item) {
         return item instanceof CellEntity ? (CellEntity) item : CellEntity.builder().value(item).build();
     }
 
+    private Font getHeaderFont(Graphics2D graphics) {
+        FontMetrics fontMetrics = graphics.getFontMetrics();
+        int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
+        return fontMetrics.getFont().deriveFont(Font.BOLD, (float) headerFontSize);
+    }
+
+    private void resetFontPlain(Graphics2D graphics) {
+        graphics.setFont(graphics.getFont().deriveFont(Font.PLAIN));
+    }
 
     // activate antialiasing and fractional metrics
     private void setAntialiasing(Graphics2D graphics) {

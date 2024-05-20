@@ -33,6 +33,8 @@ public class CellEntity {
 
     private int[] bound;
 
+    private Border border;
+
     private int mergedRowIndex;
 
     private int mergedColumnIndex;
