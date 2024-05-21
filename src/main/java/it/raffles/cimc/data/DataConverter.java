@@ -150,7 +150,6 @@ public class DataConverter {
         for (int i = 0; i < data.size(); ++i) {
             List<Object> rowData = data.get(i);
 
-            int x = 0;
             int xContentStart = 0; // Reset xStart for each row
 
             int cellHeight = this.tableConfig.getCellHeight();
@@ -160,7 +159,7 @@ public class DataConverter {
                 Object vo = rowData.get(j);
                 CellEntity cellData = isCellEntity(vo) ? (CellEntity) vo : CellEntity.builder().value(vo).build();
                 int width = this.computedHeaders.get(j).getWidth();
-                int[] bound = new int[]{x, i * cellHeight, x + width, (i + 1) * cellHeight};
+                int[] bound = new int[]{xContentStart, i * cellHeight, xContentStart + width, (i + 1) * cellHeight};
                 cellData.setRowIndex(i);
                 cellData.setColumnIndex(j);
                 cellData.setBound(bound);
@@ -181,13 +180,14 @@ public class DataConverter {
                 if (cellData.getBorder() == null || !Border.NO_RIGHT.equals(cellData.getBorder()))
                     graphics.drawLine(bound[2], bound[1], bound[2], bound[3]);
 
-                x = x + width;
+                String value = getCellValue(cellData);
+
 
                 drawText(graphics, cellData, xContentStart, i * cellHeight, width, cellHeight, this.computedHeaders.get(j).getAlignment());
-
                 xContentStart += width; // Move to the start of the next column
 
                 graphics.setColor(this.tableConfig.getTextColor());
+                this.resetFontPlain(graphics);
             }
         }
     }
@@ -198,23 +198,22 @@ public class DataConverter {
         int cellPadding = this.tableConfig.getCellPadding();
         String cellContent = getCellValue(cellData);
 
-        FontMetrics fontMetrics = graphics.getFontMetrics();
         int cellFontSize = this.tableConfig.getFontSize();
-        graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN, cellFontSize));
+        graphics.setFont(graphics.getFontMetrics().getFont().deriveFont(Font.PLAIN, cellFontSize));
 
         if (cellData instanceof CellEntity) {
             if (null != ((CellEntity) cellData).getFontSize()) {
                 cellFontSize = ((CellEntity) cellData).getFontSize();
-                graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN, cellFontSize));
+                graphics.setFont(graphics.getFontMetrics().getFont().deriveFont(Font.PLAIN, cellFontSize));
             }
             if (((CellEntity) cellData).isHeader()) {
                 alignment = Alignment.CENTER;
                 int headerFontSize = null == this.tableConfig.getHeaderFontSize() ? tableConfig.getFontSize() + 1 : this.tableConfig.getHeaderFontSize();
-                fontMetrics.getFont().deriveFont(Font.BOLD, headerFontSize);
+                graphics.getFontMetrics().getFont().deriveFont(Font.BOLD, headerFontSize);
             }
         }
 
-        int stringWidth = fontMetrics.stringWidth(cellContent);
+        int stringWidth = graphics.getFontMetrics().stringWidth(cellContent);
         int xContent;
         switch (alignment) {
             case CENTER:
@@ -226,7 +225,7 @@ public class DataConverter {
             default:
                 xContent = x + cellPadding;
         }
-        int yContent = y + height / 2 + fontMetrics.getAscent() / 2; // Vertically center the content
+        int yContent = y + height / 2 + graphics.getFontMetrics().getAscent() / 2; // Vertically center the content
 
         if (isCellEntity(cellData)) {
             // draw cell background
@@ -266,7 +265,7 @@ public class DataConverter {
 
         // reset font color
         graphics.setColor(this.tableConfig.getTextColor());
-        graphics.setFont(fontMetrics.getFont().deriveFont(Font.PLAIN));
+        graphics.setFont(graphics.getFontMetrics().getFont().deriveFont(Font.PLAIN));
     }
 
     // 绘制表格标题
